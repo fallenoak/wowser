@@ -81,14 +81,23 @@ class M2 extends THREE.Group {
     sharedGeometry.applyMatrix(matrix);
     sharedGeometry.rotateX(-Math.PI / 2);
 
-    const { textures } = data;
-    const { renderFlags } = data;
+    const { textures, renderFlags } = data;
+    const { transparencyLookups, transparencies, colors } = data;
     const { indices, textureUnits, triangles } = skinData;
 
     // TODO: Look up colors, render flags and what not
     textureUnits.forEach(function(textureUnit) {
       textureUnit.texture = textures[textureUnit.textureIndex];
       textureUnit.renderFlags = renderFlags[textureUnit.renderFlagsIndex];
+
+      if (textureUnit.transparencyIndex > -1) {
+        const transparencyLookup = transparencyLookups[textureUnit.transparencyIndex];
+        textureUnit.transparency = transparencies[transparencyLookup];
+      }
+
+      if (textureUnit.colorIndex > -1) {
+        textureUnit.color = colors[textureUnit.colorIndex];
+      }
     });
 
     this.skinData.submeshes.forEach((submesh, id) => {
