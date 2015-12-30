@@ -24,6 +24,8 @@ class GameScreen extends React.Component {
 
     this.renderer = null;
     this.requestID = null;
+
+    this.clock = new THREE.Clock();
   }
 
   componentDidMount() {
@@ -69,7 +71,7 @@ class GameScreen extends React.Component {
 
     this.refs.controls.update();
 
-    session.world.animate(this.camera);
+    session.world.animate(this.clock.getDelta(), this.camera);
 
     this.renderer.render(session.world.scene, this.camera);
     this.requestID = requestAnimationFrame(this.update);

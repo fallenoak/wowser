@@ -34,7 +34,7 @@ class WorldHandler extends EventEmitter {
     this.player.on('map:change', this.changeMap);
     this.player.on('position:change', this.changePosition);
 
-    this.billboardedM2s = [];
+    this.animatedM2s = [];
 
     // Darkshire (Eastern Kingdoms)
     this.player.worldport(0, -10559, -1189, 28);
@@ -142,25 +142,27 @@ class WorldHandler extends EventEmitter {
     this.renderAtCoords(player.position.x, player.position.y);
   }
 
-  addBillboardedM2(m2) {
-    this.billboardedM2s.push(m2);
+  addAnimatedM2(m2) {
+    this.animatedM2s.push(m2);
   }
 
-  animate(camera) {
+  animate(delta, camera) {
     const cameraRotated = this.prevCameraRotation === null ||
       !this.prevCameraRotation.equals(camera.quaternion);
 
-    this.animateModels(camera, cameraRotated);
+    this.animateModels(delta, camera, cameraRotated);
 
     this.prevCameraRotation = camera.quaternion.clone();
   }
 
-  animateModels(camera, cameraRotated) {
-    if (cameraRotated) {
-      this.billboardedM2s.forEach((m2) => {
+  animateModels(delta, camera, cameraRotated) {
+    this.animatedM2s.forEach((m2) => {
+      m2.animationMixer.update(delta);
+
+      if (cameraRotated) {
         m2.applyBillboards(camera);
-      });
-    }
+      }
+    });
   }
 }
 

@@ -15,7 +15,16 @@ class M2 extends THREE.Group {
     this.skinData = skinData;
     this.billboards = [];
 
+    this.isAnimated = this.data.isAnimated;
+    this.animationClips = [];
+
     const sharedGeometry = new THREE.Geometry();
+
+    // Establish clips for each animation.
+    this.data.animations.forEach((animationDef, index) => {
+      const clip = new THREE.AnimationClip('animation-' + index, animationDef.length, []);
+      this.animationClips[index] = clip;
+    });
 
     // TODO: Potentially move these calculations and mesh generation to worker
 
@@ -39,6 +48,35 @@ class M2 extends THREE.Group {
       if (joint.flags & 0x08) {
         bone.userData.isBillboard = true;
         this.billboards.push(bone);
+      }
+
+      if (joint.scaling.hasValues) {
+        this.registerAnimationTrack({
+          target: bone,
+          property: 'scale',
+          animationBlock: joint.scaling,
+          trackType: 'VectorKeyframeTrack',
+          valueTransform: function(value) {
+            return new THREE.Vector3(value.x, value.y, value.z);
+          }
+        });
+      }
+
+      if (joint.rotation.hasValues) {
+        this.registerAnimationTrack({
+          target: bone,
+          property: 'quaternion',
+          animationBlock: joint.rotation,
+          trackType: 'QuaternionKeyframeTrack',
+          valueTransform: function(value) {
+            return new THREE.Quaternion(value.x, value.y, value.z, value.w);
+          }
+        });
+      }
+
+      if (joint.translation.hasValues) {
+        // TODO Handle translation animations
+        // need to find model that uses them
       }
 
       if (joint.parentID > -1) {
@@ -92,11 +130,13 @@ class M2 extends THREE.Group {
 
       if (textureUnit.transparencyIndex > -1) {
         const transparencyLookup = transparencyLookups[textureUnit.transparencyIndex];
-        textureUnit.transparency = transparencies[transparencyLookup];
+        const transparency = transparencies[transparencyLookup];
+        textureUnit.transparency = transparency;
       }
 
       if (textureUnit.colorIndex > -1) {
-        textureUnit.color = colors[textureUnit.colorIndex];
+        const color = colors[textureUnit.colorIndex];
+        textureUnit.color = color;
       }
     });
 
@@ -131,7 +171,14 @@ class M2 extends THREE.Group {
 
       const isBillboard = indexedBones[submesh.rootBone].userData.isBillboard === true;
 
-      const mesh = new Submesh(id, geometry, textureUnits, isBillboard);
+      let submeshGeometry = geometry;
+
+      // Static models get buffer geometry for performance.
+      if (!this.isAnimated) {
+        submeshGeometry = new THREE.BufferGeometry().fromGeometry(geometry);
+      }
+
+      const mesh = new Submesh(id, submeshGeometry, textureUnits, isBillboard);
 
       rootBones.forEach((bone) => {
         mesh.add(bone);
@@ -141,16 +188,47 @@ class M2 extends THREE.Group {
 
       this.add(mesh);
     });
+
+    this.registerAnimations();
   }
 
-  set displayInfo(displayInfo) {
-    this.children.forEach(function(submesh) {
-      submesh.displayInfo = displayInfo;
+  registerAnimationTrack(settings) {
+    const trackName = settings.target.uuid + '.' + settings.property;
+    const animationBlock = settings.animationBlock;
+
+    animationBlock.sequences.forEach((sequence, animationIndex) => {
+      const keys = [];
+
+      sequence.forEach((entry) => {
+        const key = {
+          time: entry.timestamp,
+          value: settings.valueTransform(entry.value)
+        };
+
+        keys.push(key);
+      });
+
+      const clip = this.animationClips[animationIndex];
+      const track = new THREE[settings.trackType](trackName, keys);
+
+      clip.tracks.push(track);
     });
   }
 
-  clone() {
-    return new this.constructor(this.path, this.data, this.skinData);
+  registerAnimations() {
+    this.animationMixer = new THREE.AnimationMixer(this);
+
+    // M2 animations are keyframed in milliseconds.
+    this.animationMixer.timeScale = 1000.0;
+
+    this.animationClips.forEach((clip) => {
+      clip.trim();
+      clip.optimize();
+
+      const action = new THREE.AnimationAction(clip);
+
+      this.animationMixer.addAction(action);
+    });
   }
 
   applyBillboards(camera) {
@@ -191,6 +269,16 @@ class M2 extends THREE.Group {
     );
 
     bone.rotation.setFromRotationMatrix(rotateMatrix);
+  }
+
+  set displayInfo(displayInfo) {
+    this.children.forEach(function(submesh) {
+      submesh.displayInfo = displayInfo;
+    });
+  }
+
+  clone() {
+    return new this.constructor(this.path, this.data, this.skinData);
   }
 
   static load(path) {
