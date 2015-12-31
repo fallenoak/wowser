@@ -155,6 +155,7 @@ class M2 extends THREE.Group {
         ];
 
         const face = new THREE.Face3(vindices[0], vindices[1], vindices[2]);
+
         geometry.faces.push(face);
 
         uvs[faceIndex] = [];
@@ -202,25 +203,25 @@ class M2 extends THREE.Group {
     const trackName = settings.target.uuid + '.' + settings.property;
     const animationBlock = settings.animationBlock;
 
-    animationBlock.sequences.forEach((sequence, animationIndex) => {
+    animationBlock.tracks.forEach((trackDef, animationIndex) => {
       // Avoid attempting to create empty tracks.
-      if (sequence.length === 0) {
+      if (trackDef.keyframes.length === 0) {
         return;
       }
 
-      const keys = [];
+      const keyframes = [];
 
-      sequence.forEach((entry) => {
-        const key = {
-          time: entry.timestamp,
-          value: settings.valueTransform(entry.value)
+      trackDef.keyframes.forEach((keyframeDef) => {
+        const keyframe = {
+          time: keyframeDef.time,
+          value: settings.valueTransform(keyframeDef.value)
         };
 
-        keys.push(key);
+        keyframes.push(keyframe);
       });
 
       const clip = this.animationClips[animationIndex];
-      const track = new THREE[settings.trackType](trackName, keys);
+      const track = new THREE[settings.trackType](trackName, keyframes);
 
       clip.tracks.push(track);
     });
