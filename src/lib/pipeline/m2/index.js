@@ -17,6 +17,7 @@ class M2 extends THREE.Group {
 
     this.isAnimated = this.data.isAnimated;
     this.animationClips = [];
+    this.animations = [];
 
     const sharedGeometry = new THREE.Geometry();
 
@@ -41,12 +42,26 @@ class M2 extends THREE.Group {
 
       bones.push(bone);
 
+      if (joint.parentID > -1) {
+        const parent = bones[joint.parentID];
+        parent.add(bone);
+
+        // Correct bone positioning relative to parent
+        let up = bone;
+        while (up = up.parent) {
+          bone.position.sub(up.position);
+        }
+      } else {
+        rootBones.push(bone);
+      }
+
       // Track billboarded bones
       if (joint.flags & 0x08) {
         bone.userData.isBillboard = true;
         this.billboards.push(bone);
       }
 
+      // Bone scaling animation block
       if (joint.scaling.hasValues) {
         this.registerAnimationTrack({
           target: bone,
@@ -59,6 +74,7 @@ class M2 extends THREE.Group {
         });
       }
 
+      // Bone rotation animation block
       if (joint.rotation.hasValues) {
         this.registerAnimationTrack({
           target: bone,
@@ -71,22 +87,9 @@ class M2 extends THREE.Group {
         });
       }
 
+      // Bone translation animation block
       if (joint.translation.hasValues) {
-        // TODO Handle translation animations
-        // need to find model that uses them
-      }
-
-      if (joint.parentID > -1) {
-        const parent = bones[joint.parentID];
-        parent.add(bone);
-
-        // Correct bone positioning relative to parent
-        let up = bone;
-        while (up = up.parent) {
-          bone.position.sub(up.position);
-        }
-      } else {
-        rootBones.push(bone);
+        // TODO: Implement bone translation animations.
       }
     });
 
@@ -116,13 +119,16 @@ class M2 extends THREE.Group {
     sharedGeometry.applyMatrix(matrix);
     sharedGeometry.rotateX(-Math.PI / 2);
 
-    const { textures, renderFlags } = data;
+    const { textureLookups, textures, renderFlags } = data;
     const { transparencyLookups, transparencies, colors } = data;
     const { indices, textureUnits, triangles } = skinData;
 
     // TODO: Look up colors, render flags and what not
     textureUnits.forEach(function(textureUnit) {
-      textureUnit.texture = textures[textureUnit.textureIndex];
+      const textureLookup = textureLookups[textureUnit.textureIndex];
+      const texture = textures[textureLookup];
+      textureUnit.texture = texture;
+
       textureUnit.renderFlags = renderFlags[textureUnit.renderFlagsIndex];
 
       if (textureUnit.transparencyIndex > -1) {
@@ -230,18 +236,20 @@ class M2 extends THREE.Group {
   }
 
   registerAnimations() {
-    this.animationMixer = new THREE.AnimationMixer(this);
-
-    // M2 animations are keyframed in milliseconds.
-    this.animationMixer.timeScale = 1000.0;
-
     this.animationClips.forEach((clip) => {
+      const animationMixer = new THREE.AnimationMixer(this);
+
+      // M2 animations are keyframed in milliseconds.
+      animationMixer.timeScale = 1000.0;
+
       clip.trim();
       clip.optimize();
 
       const action = new THREE.AnimationAction(clip);
 
-      this.animationMixer.addAction(action);
+      animationMixer.addAction(action);
+
+      this.animations.push(animationMixer);
     });
   }
 

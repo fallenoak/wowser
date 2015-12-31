@@ -107,7 +107,10 @@ class Map extends THREE.Group {
 
   animateModels(delta, camera, cameraRotated) {
     this.animatedM2s.forEach((m2) => {
-      m2.animationMixer.update(delta);
+      // TODO: Manage which animations play and when.
+      if (m2.animations.length > 0) {
+        m2.animations[0].update(delta);
+      }
 
       if (cameraRotated) {
         m2.applyBillboards(camera);
