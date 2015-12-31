@@ -194,6 +194,11 @@ class M2 extends THREE.Group {
     const animationBlock = settings.animationBlock;
 
     animationBlock.sequences.forEach((sequence, animationIndex) => {
+      // Avoid attempting to create empty tracks.
+      if (sequence.length === 0) {
+        return;
+      }
+
       const keys = [];
 
       sequence.forEach((entry) => {

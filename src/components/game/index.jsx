@@ -26,8 +26,6 @@ class GameScreen extends React.Component {
 
     this.renderer = null;
     this.requestID = null;
-
-    this.clock = new THREE.Clock();
   }
 
   componentDidMount() {
@@ -76,7 +74,7 @@ class GameScreen extends React.Component {
     const cameraRotated = this.prevCameraRotation === null ||
       !this.prevCameraRotation.equals(this.camera.quaternion);
 
-    session.world.animate(this.clock.getDelta(), this.camera, cameraRotated);
+    session.world.animate(this.refs.controls.clock.getDelta(), this.camera, cameraRotated);
 
     this.renderer.render(session.world.scene, this.camera);
     this.requestID = requestAnimationFrame(this.animate);
