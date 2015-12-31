@@ -2,48 +2,70 @@ import THREE from 'three';
 
 import Material from '../material';
 
-class Submesh extends THREE.SkinnedMesh {
+class Submesh extends THREE.Group {
 
-  constructor(id, geometry, textureUnits, isBillboard) {
-    super(geometry);
+  constructor(id, opts) {
+    super();
 
     this.index = id;
+
+    this.geometry = opts.geometry;
+    this.skeleton = opts.skeleton;
+    this.rootBones = opts.rootBones;
+    this.textureUnits = opts.textureUnits;
+
+    this.isBillboard = opts.isBillboard;
+
+    this.materialMeshes = [];
 
     this.skin1 = null;
     this.skin2 = null;
     this.skin3 = null;
 
-    this.isBillboard = isBillboard;
-
-    this.applyTextureUnits(textureUnits);
+    this.applyTextureUnits();
   }
 
-  applyTextureUnits(textureUnits) {
-    this.textureUnits = textureUnits;
+  applyTextureUnits() {
+    // Clear out old material meshes in case we're reapplying texture units.
+    this.clearMaterialMeshes();
 
-    // If only one texture unit was provided, treat as single material. If multiple texture units
-    // were provided, set up multimaterial instead. Multimaterials rely on the geometry to decide
-    // which material is used for each face.
-    if (textureUnits.length === 1) {
-      this.material = this.createMaterial(textureUnits[0]);
-    } else {
-      const materials = [];
+    // Create meshes for each material and add to the group.
+    this.textureUnits.forEach((textureUnit) => {
+      const material = this.createMaterial(textureUnit);
+      const materialMesh = new THREE.SkinnedMesh(this.geometry, material);
 
-      textureUnits.forEach((textureUnit) => {
-        materials.push(this.createMaterial(textureUnit));
+      this.rootBones.forEach((rootBone) => {
+        materialMesh.add(rootBone);
       });
 
-      const multiMaterial = new THREE.MultiMaterial(materials);
+      materialMesh.bind(this.skeleton);
 
-      this.material = multiMaterial;
-    }
+      this.materialMeshes.push(materialMesh);
+      this.add(materialMesh);
+    });
+  }
+
+  clearMaterialMeshes() {
+    this.materialMeshes.forEach((materialMesh) => {
+      this.remove(materialMesh);
+    });
+
+    this.materialMeshes = [];
   }
 
   createMaterial(textureUnit) {
-    const material = new Material({ skinning: true });
-
     const { texture, renderFlags } = textureUnit;
 
+    const material = new Material({ skinning: true });
+
+    this.applyTexture(material, texture);
+    this.applyRenderFlags(material, renderFlags.flags);
+    this.applyBlendingMode(material, renderFlags.blendingMode);
+
+    return material;
+  }
+
+  applyTexture(material, texture) {
     switch (texture.type) {
       case 0:
         // Hardcoded texture
@@ -67,32 +89,31 @@ class Submesh extends THREE.SkinnedMesh {
       default:
         break;
     }
-
-    this.applyRenderFlags(material, renderFlags);
-
-    return material;
   }
 
   applyRenderFlags(material, renderFlags) {
-    const { flags, blendingMode } = renderFlags;
-
     // Flag 0x04 (no backface culling) and all billboards need double side rendering.
-    if (flags & 0x04 || this.isBillboard) {
+    if (renderFlags & 0x04 || this.isBillboard) {
       material.side = THREE.DoubleSide;
     }
 
     // Flag 0x04 (no backface culling) and anything with blending mode >= 1 need to obey
     // alpha values in the material texture.
-    if (flags & 0x04 || blendingMode >= 1) {
+    if (renderFlags & 0x04) {
       material.transparent = true;
     }
 
     // Flag 0x10 (no z-buffer write)
-    if (flags & 0x10) {
+    if (renderFlags & 0x10) {
       material.depthWrite = false;
     }
+  }
 
-    // Blending modes
+  applyBlendingMode(material, blendingMode) {
+    if (blendingMode >= 1) {
+      material.transparent = true;
+    }
+
     switch (blendingMode) {
       case 0:
         material.blending = THREE.NoBlending;

@@ -178,20 +178,22 @@ class M2 extends THREE.Group {
 
       // Extract texture units associated with this particular submesh, since not all texture units
       // apply to all submeshes.
-      const associatedTextureUnits = [];
+      const submeshTextureUnits = [];
       textureUnits.forEach((textureUnit) => {
         if (textureUnit.submeshIndex === id) {
-          associatedTextureUnits.push(textureUnit);
+          submeshTextureUnits.push(textureUnit);
         }
       });
 
-      const mesh = new Submesh(id, submeshGeometry, associatedTextureUnits, isBillboard);
+      const submeshOpts = {
+        geometry: submeshGeometry,
+        skeleton: this.skeleton,
+        rootBones: rootBones,
+        textureUnits: submeshTextureUnits,
+        isBillboard: isBillboard
+      };
 
-      rootBones.forEach((bone) => {
-        mesh.add(bone);
-      });
-
-      mesh.bind(this.skeleton);
+      const mesh = new Submesh(id, submeshOpts);
 
       this.add(mesh);
     });
