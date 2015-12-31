@@ -70,6 +70,10 @@ class Submesh extends THREE.SkinnedMesh {
       this.material.transparent = true;
     }
 
+    if (flags & 0x10 && this.isBillboard) {
+      this.material.depthWrite = false;
+    }
+
     // Blending modes
     switch (blendingMode) {
       case 0:
