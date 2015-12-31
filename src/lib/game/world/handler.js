@@ -13,17 +13,6 @@ class WorldHandler extends EventEmitter {
     this.scene = new THREE.Scene();
     this.map = null;
 
-    this.prevCameraRotation = null;
-
-    // TODO: Use this handler for all entities, not just the player
-    this.player.on('change:model', (oldModel, newModel) => {
-      if (oldModel) {
-        this.scene.remove(oldModel);
-      }
-
-      this.scene.add(newModel);
-    });
-
     this.changeMap = ::this.changeMap;
     this.changeModel = ::this.changeModel;
     this.changePosition = ::this.changePosition;
@@ -33,8 +22,6 @@ class WorldHandler extends EventEmitter {
 
     this.player.on('map:change', this.changeMap);
     this.player.on('position:change', this.changePosition);
-
-    this.animatedM2s = [];
 
     // Darkshire (Eastern Kingdoms)
     this.player.worldport(0, -10559, -1189, 28);
@@ -120,7 +107,6 @@ class WorldHandler extends EventEmitter {
         this.scene.remove(this.map);
       }
       this.map = map;
-      this.map.setWorld(this);
       this.scene.add(this.map);
       this.renderAtCoords(this.player.position.x, this.player.position.y);
     });
@@ -142,27 +128,10 @@ class WorldHandler extends EventEmitter {
     this.renderAtCoords(player.position.x, player.position.y);
   }
 
-  addAnimatedM2(m2) {
-    this.animatedM2s.push(m2);
-  }
-
-  animate(delta, camera) {
-    const cameraRotated = this.prevCameraRotation === null ||
-      !this.prevCameraRotation.equals(camera.quaternion);
-
-    this.animateModels(delta, camera, cameraRotated);
-
-    this.prevCameraRotation = camera.quaternion.clone();
-  }
-
-  animateModels(delta, camera, cameraRotated) {
-    this.animatedM2s.forEach((m2) => {
-      m2.animationMixer.update(delta);
-
-      if (cameraRotated) {
-        m2.applyBillboards(camera);
-      }
-    });
+  animate(delta, camera, cameraRotated) {
+    if (this.map !== null) {
+      this.map.animate(delta, camera, cameraRotated);
+    }
   }
 }
 

@@ -30,12 +30,9 @@ class M2 extends THREE.Group {
 
     const bones = [];
     const rootBones = [];
-    const indexedBones = [];
 
-    this.data.bones.forEach((joint, index) => {
+    this.data.bones.forEach((joint) => {
       const bone = new THREE.Bone();
-
-      indexedBones[index] = bone;
 
       // M2 bone positioning seems to be inverted on X and Y
       const { pivotPoint } = joint;
@@ -169,7 +166,7 @@ class M2 extends THREE.Group {
 
       geometry.faceVertexUvs = [uvs];
 
-      const isBillboard = indexedBones[submesh.rootBone].userData.isBillboard === true;
+      const isBillboard = bones[submesh.rootBone].userData.isBillboard === true;
 
       let submeshGeometry = geometry;
 
