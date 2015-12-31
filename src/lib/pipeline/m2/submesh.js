@@ -7,126 +7,142 @@ class Submesh extends THREE.SkinnedMesh {
   constructor(id, geometry, textureUnits, isBillboard) {
     super(geometry);
 
+    this.index = id;
+
     this.skin1 = null;
     this.skin2 = null;
     this.skin3 = null;
 
     this.isBillboard = isBillboard;
 
-    // TODO: Figure out why some submeshes have multiple texture units
-    textureUnits.forEach((textureUnit) => {
-      if (textureUnit.submeshIndex !== id) {
-        return;
-      }
-
-      this.applyTextureUnit(textureUnit);
-    });
+    this.applyTextureUnits(textureUnits);
   }
 
-  applyTextureUnit(textureUnit) {
-    this.material = new Material({ skinning: true });
-    this.textureUnit = textureUnit;
+  applyTextureUnits(textureUnits) {
+    this.textureUnits = textureUnits;
+
+    // If only one texture unit was provided, treat as single material. If multiple texture units
+    // were provided, set up multimaterial instead. Multimaterials rely on the geometry to decide
+    // which material is used for each face.
+    if (textureUnits.length === 1) {
+      this.material = this.createMaterial(textureUnits[0]);
+    } else {
+      const materials = [];
+
+      textureUnits.forEach((textureUnit) => {
+        materials.push(this.createMaterial(textureUnit));
+      });
+
+      const multiMaterial = new THREE.MultiMaterial(materials);
+
+      this.material = multiMaterial;
+    }
+  }
+
+  createMaterial(textureUnit) {
+    const material = new Material({ skinning: true });
 
     const { texture, renderFlags } = textureUnit;
 
     switch (texture.type) {
       case 0:
         // Hardcoded texture
-        this.material.texture = texture.filename;
+        material.texture = texture.filename;
         break;
       case 11:
         if (this.skin1) {
-          this.material.texture = this.skin1;
+          material.texture = this.skin1;
         }
         break;
       case 12:
         if (this.skin2) {
-          this.material.texture = this.skin2;
+          material.texture = this.skin2;
         }
         break;
       case 13:
         if (this.skin3) {
-          this.material.texture = this.skin3;
+          material.texture = this.skin3;
         }
         break;
       default:
         break;
     }
 
-    this.applyRenderFlags(renderFlags);
+    this.applyRenderFlags(material, renderFlags);
+
+    return material;
   }
 
-  applyRenderFlags(renderFlags) {
+  applyRenderFlags(material, renderFlags) {
     const { flags, blendingMode } = renderFlags;
 
     // Flag 0x04 (no backface culling) and all billboards need double side rendering.
     if (flags & 0x04 || this.isBillboard) {
-      this.material.side = THREE.DoubleSide;
+      material.side = THREE.DoubleSide;
     }
 
-    // Flag 0x04 (no backface culling) and billboards with blending mode above 1 need to obey
+    // Flag 0x04 (no backface culling) and anything with blending mode >= 1 need to obey
     // alpha values in the material texture.
-    if (flags & 0x04 || (this.isBillboard && blendingMode > 1)) {
-      this.material.transparent = true;
+    if (flags & 0x04 || blendingMode >= 1) {
+      material.transparent = true;
     }
 
-    if (flags & 0x10 && this.isBillboard) {
-      this.material.depthWrite = false;
+    // Flag 0x10 (no z-buffer write)
+    if (flags & 0x10) {
+      material.depthWrite = false;
     }
 
     // Blending modes
     switch (blendingMode) {
       case 0:
-        this.material.blending = THREE.NoBlending;
-        this.material.blendSrc = THREE.OneFactor;
-        this.material.blendDst = THREE.ZeroFactor;
+        material.blending = THREE.NoBlending;
+        material.blendSrc = THREE.OneFactor;
+        material.blendDst = THREE.ZeroFactor;
         break;
 
       case 1:
-        this.material.transparent = true;
+        material.alphaTest = 0.5;
+        material.side = THREE.DoubleSide;
 
-        this.material.alphaTest = 0.5;
-        this.material.side = THREE.DoubleSide;
-
-        this.material.blendSrc = THREE.OneFactor;
-        this.material.blendDst = THREE.ZeroFactor;
-        this.material.blendSrcAlpha = THREE.OneFactor;
-        this.material.blendDstAlpha = THREE.ZeroFactor;
+        material.blendSrc = THREE.OneFactor;
+        material.blendDst = THREE.ZeroFactor;
+        material.blendSrcAlpha = THREE.OneFactor;
+        material.blendDstAlpha = THREE.ZeroFactor;
         break;
 
       case 2:
-        this.material.blendSrc = THREE.SrcAlphaFactor;
-        this.material.blendDst = THREE.OneMinusSrcAlphaFactor;
-        this.material.blendSrcAlpha = THREE.SrcAlphaFactor;
-        this.material.blendDstAlpha = THREE.OneMinusSrcAlphaFactor;
+        material.blendSrc = THREE.SrcAlphaFactor;
+        material.blendDst = THREE.OneMinusSrcAlphaFactor;
+        material.blendSrcAlpha = THREE.SrcAlphaFactor;
+        material.blendDstAlpha = THREE.OneMinusSrcAlphaFactor;
         break;
 
       case 3:
-        this.material.blendSrc = THREE.SrcColorFactor;
-        this.material.blendDst = THREE.DstColorFactor;
-        this.material.blendSrcAlpha = THREE.SrcAlphaFactor;
-        this.material.blendDstAlpha = THREE.DstAlphaFactor;
+        material.blendSrc = THREE.SrcColorFactor;
+        material.blendDst = THREE.DstColorFactor;
+        material.blendSrcAlpha = THREE.SrcAlphaFactor;
+        material.blendDstAlpha = THREE.DstAlphaFactor;
         break;
 
       case 4:
-        this.material.blendSrc = THREE.SrcAlphaFactor;
-        this.material.blendDst = THREE.OneFactor;
-        this.material.blendSrcAlpha = THREE.SrcAlphaFactor;
-        this.material.blendDstAlpha = THREE.OneFactor;
+        material.blendSrc = THREE.SrcAlphaFactor;
+        material.blendDst = THREE.OneFactor;
+        material.blendSrcAlpha = THREE.SrcAlphaFactor;
+        material.blendDstAlpha = THREE.OneFactor;
         break;
 
       case 5:
-        this.material.blendSrc = THREE.DstColorFactor;
-        this.material.blendDst = THREE.ZeroFactor;
-        this.material.blendSrcAlpha = THREE.DstAlphaFactor;
-        this.material.blendDstAlpha = THREE.ZeroFactor;
+        material.blendSrc = THREE.DstColorFactor;
+        material.blendDst = THREE.ZeroFactor;
+        material.blendSrcAlpha = THREE.DstAlphaFactor;
+        material.blendDstAlpha = THREE.ZeroFactor;
         break;
 
       case 6:
-        this.material.blendSrc = THREE.DstColorFactor;
-        this.material.blendDst = THREE.SrcColorFactor;
-        this.material.blendSrcAlpha = THREE.DstAlphaFactor;
-        this.material.blendDstAlpha = THREE.SrcAlphaFactor;
+        material.blendSrc = THREE.DstColorFactor;
+        material.blendDst = THREE.SrcColorFactor;
+        material.blendSrcAlpha = THREE.DstAlphaFactor;
+        material.blendDstAlpha = THREE.SrcAlphaFactor;
         break;
 
       default:
@@ -134,8 +150,8 @@ class Submesh extends THREE.SkinnedMesh {
     }
   }
 
-  reapplyTextureUnit() {
-    this.applyTextureUnit(this.textureUnit);
+  reapplyTextureUnits() {
+    this.applyTextureUnits(this.textureUnits);
   }
 
   set displayInfo(displayInfo) {
@@ -143,7 +159,7 @@ class Submesh extends THREE.SkinnedMesh {
     this.skin1 = `${path}${displayInfo.skin1}.blp`;
     this.skin2 = `${path}${displayInfo.skin2}.blp`;
     this.skin3 = `${path}${displayInfo.skin3}.blp`;
-    this.reapplyTextureUnit();
+    this.reapplyTextureUnits();
   }
 
 }
