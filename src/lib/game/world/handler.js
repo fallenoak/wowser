@@ -121,6 +121,10 @@ class WorldHandler extends EventEmitter {
     if (newModel) {
       newModel.skeletonHelper = new THREE.SkeletonHelper(newModel);
       this.scene.add(newModel.skeletonHelper);
+
+      if (newModel.isAnimated) {
+        this.map.addAnimatedM2(newModel);
+      }
     }
   }
 
