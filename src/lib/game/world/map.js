@@ -115,6 +115,11 @@ class Map extends THREE.Group {
       if (cameraRotated) {
         m2.applyBillboards(camera);
       }
+
+      // If present, ensure the skeleton helper animates with the model.
+      if (m2.skeletonHelper) {
+        m2.skeletonHelper.update();
+      }
     });
   }
 
