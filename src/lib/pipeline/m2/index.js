@@ -61,17 +61,9 @@ class M2 extends THREE.Group {
         this.billboards.push(bone);
       }
 
-      // Bone scaling animation block
-      if (joint.scaling.hasValues) {
-        this.registerAnimationTrack({
-          target: bone,
-          property: 'scale',
-          animationBlock: joint.scaling,
-          trackType: 'VectorKeyframeTrack',
-          valueTransform: function(value) {
-            return new THREE.Vector3(value.x, value.y, value.z);
-          }
-        });
+      // Bone translation animation block
+      if (joint.translation.hasValues) {
+        // TODO: Implement bone translation animations.
       }
 
       // Bone rotation animation block
@@ -87,9 +79,17 @@ class M2 extends THREE.Group {
         });
       }
 
-      // Bone translation animation block
-      if (joint.translation.hasValues) {
-        // TODO: Implement bone translation animations.
+      // Bone scaling animation block
+      if (joint.scaling.hasValues) {
+        this.registerAnimationTrack({
+          target: bone,
+          property: 'scale',
+          animationBlock: joint.scaling,
+          trackType: 'VectorKeyframeTrack',
+          valueTransform: function(value) {
+            return new THREE.Vector3(value.x, value.y, value.z);
+          }
+        });
       }
     });
 
