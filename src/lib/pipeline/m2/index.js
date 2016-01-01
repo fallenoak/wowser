@@ -13,6 +13,7 @@ class M2 extends THREE.Group {
     this.path = path;
     this.data = data;
     this.skinData = skinData;
+
     this.billboards = [];
 
     this.isAnimated = this.data.isAnimated;
@@ -63,7 +64,23 @@ class M2 extends THREE.Group {
 
       // Bone translation animation block
       if (joint.translation.hasValues) {
-        // TODO: Implement bone translation animations.
+        this.registerAnimationTrack({
+          target: bone,
+          property: 'position',
+          animationBlock: joint.translation,
+          trackType: 'VectorKeyframeTrack',
+
+          valueTransform: function(value) {
+            const translatedBone = bone.clone();
+
+            // Same inverted X and Y values as the pivotPoint above.
+            translatedBone.translateX(-value.x);
+            translatedBone.translateY(-value.y);
+            translatedBone.translateZ(value.z);
+
+            return translatedBone.position;
+          }
+        });
       }
 
       // Bone rotation animation block
@@ -73,8 +90,9 @@ class M2 extends THREE.Group {
           property: 'quaternion',
           animationBlock: joint.rotation,
           trackType: 'QuaternionKeyframeTrack',
+
           valueTransform: function(value) {
-            return new THREE.Quaternion(value.x, value.y, value.z, value.w);
+            return new THREE.Quaternion(value.x, value.y, -value.z, value.w).inverse();
           }
         });
       }
@@ -86,6 +104,7 @@ class M2 extends THREE.Group {
           property: 'scale',
           animationBlock: joint.scaling,
           trackType: 'VectorKeyframeTrack',
+
           valueTransform: function(value) {
             return new THREE.Vector3(value.x, value.y, value.z);
           }
