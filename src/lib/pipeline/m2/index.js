@@ -63,7 +63,7 @@ class M2 extends THREE.Group {
       }
 
       // Bone translation animation block
-      if (joint.translation.hasValues) {
+      if (joint.translation.isAnimated) {
         this.registerAnimationTrack({
           target: bone,
           property: 'position',
@@ -84,7 +84,7 @@ class M2 extends THREE.Group {
       }
 
       // Bone rotation animation block
-      if (joint.rotation.hasValues) {
+      if (joint.rotation.isAnimated) {
         this.registerAnimationTrack({
           target: bone,
           property: 'quaternion',
@@ -98,7 +98,7 @@ class M2 extends THREE.Group {
       }
 
       // Bone scaling animation block
-      if (joint.scaling.hasValues) {
+      if (joint.scaling.isAnimated) {
         this.registerAnimationTrack({
           target: bone,
           property: 'scale',
