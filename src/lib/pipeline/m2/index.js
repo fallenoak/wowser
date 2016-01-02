@@ -192,14 +192,9 @@ class M2 extends THREE.Group {
 
       geometry.faceVertexUvs = [uvs];
 
+      const submeshGeometry = new THREE.BufferGeometry().fromGeometry(geometry);
+
       const isBillboard = bones[submesh.rootBone].userData.isBillboard === true;
-
-      let submeshGeometry = geometry;
-
-      // Static models get buffer geometry for performance.
-      if (!this.isAnimated) {
-        submeshGeometry = new THREE.BufferGeometry().fromGeometry(geometry);
-      }
 
       // Extract texture units associated with this particular submesh, since not all texture units
       // apply to all submeshes.
