@@ -18,11 +18,16 @@ class Material extends THREE.ShaderMaterial {
 
     this.side = THREE.BackSide;
 
-    this.uniforms = {
-      layerCount: { type: 'i', value: this.layers.length },
-      alphaMaps: { type: 'tv', value: this.alphaMaps },
-      textures: { type: 'tv', value: this.textures }
-    };
+    this.fog = true;
+
+    this.uniforms = THREE.UniformsUtils.merge([
+      THREE.UniformsLib.fog,
+      {
+        layerCount: { type: 'i', value: this.layers.length },
+        alphaMaps: { type: 'tv', value: this.alphaMaps },
+        textures: { type: 'tv', value: this.textures }
+      }
+    ]);
   }
 
   get alphaMaps() {
