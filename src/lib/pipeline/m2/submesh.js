@@ -109,6 +109,11 @@ class Submesh extends THREE.Group {
       material.side = THREE.DoubleSide;
     }
 
+    // Flag 0x02 (skip fog)
+    if (renderFlags & 0x02) {
+      material.fog = false;
+    }
+
     // Flag 0x04 (no backface culling) and anything with blending mode >= 1 need to obey
     // alpha values in the material texture.
     if (renderFlags & 0x04) {
