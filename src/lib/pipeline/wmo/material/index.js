@@ -17,10 +17,12 @@ class WMOMaterial extends THREE.ShaderMaterial {
       blendingMode: { type: 'i', value: def.blendMode },
 
       useBaseColor: { type: 'i', value: 0 },
-      baseColor: { type: 'c', value: new THREE.Color(0, 0, 0) },
-      baseAlpha: { type: 'f', value: 0.0 },
+      baseColorRGB: { type: 'c', value: new THREE.Color(0, 0, 0) },
+      baseColorAlpha: { type: 'f', value: 0.0 },
 
       indoor: { type: 'i', value: 0 },
+
+      batchType: { type: 'i', value: def.batchType },
 
       // Managed by light manager
       lightModifier: { type: 'f', value: 1.0 },
@@ -34,19 +36,21 @@ class WMOMaterial extends THREE.ShaderMaterial {
       fogEnd: { type: 'f', value: 400.0 }
     };
 
-    if (def.useBaseColor) {
-      const baseColor = new THREE.Color(
-        def.baseColor.r / 255.0,
-        def.baseColor.g / 255.0,
-        def.baseColor.b / 255.0,
+    let baseAmbientLightRGB = new THREE.Color(0.0, 0.0, 0.0);
+    let baseAmbientLightAlpha = 0.0;
+
+    if (def.indoor) {
+      baseAmbientLightRGB = new THREE.Color(
+        (def.baseAmbientLight.r / 255.0) / 2.0,
+        (def.baseAmbientLight.g / 255.0) / 2.0,
+        (def.baseAmbientLight.b / 255.0) / 2.0,
       );
 
-      const baseAlpha = def.baseColor.a / 255.0;
-
-      this.uniforms.useBaseColor = { type: 'i', value: 1 };
-      this.uniforms.baseColor = { type: 'c', value: baseColor };
-      this.uniforms.baseAlpha = { type: 'f', value: baseAlpha };
+      baseAmbientLightAlpha = def.baseAmbientLight.a / 255.0;
     }
+
+    this.uniforms.baseAmbientLightRGB = { type: 'c', value: baseAmbientLightRGB };
+    this.uniforms.baseAmbientLightAlpha = { type: 'f', value: baseAmbientLightAlpha };
 
     // Tag lighting mode (based on group flags)
     if (def.indoor) {

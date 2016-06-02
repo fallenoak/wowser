@@ -1,20 +1,15 @@
 precision highp float;
 
-varying vec2 vUv;
-
-varying vec3 vertexWorldNormal;
-varying float cameraDistance;
-
-attribute vec3 color;
-attribute float alpha;
-
-varying vec4 vertexColor;
+attribute vec4 aColor;
 
 uniform int indoor;
+uniform vec3 baseAmbientLightRGB;
+uniform float baseAmbientLightAlpha;
 
-uniform int useBaseColor;
-uniform vec3 baseColor;
-uniform float baseAlpha;
+varying vec2 vUv;
+varying vec3 vertexWorldNormal;
+varying float cameraDistance;
+varying vec4 vertexColor;
 
 vec4 saturate(vec4 value) {
   vec4 result = clamp(value, 0.0, 1.0);
@@ -34,12 +29,10 @@ float saturate(float value) {
 void main() {
   vUv = uv;
 
-  vertexColor = vec4(color, alpha);
+  vec4 baseAmbientLight = vec4(baseAmbientLightRGB, baseAmbientLightAlpha);
 
-  if (indoor == 1 && useBaseColor == 1) {
-    vertexColor.rgb = saturate(vertexColor.rgb + baseColor.rgb);
-    vertexColor.a = saturate(mod(vertexColor.a, 1.0) + (1.0 - baseAlpha));
-  }
+  vertexColor.rgb = saturate(aColor.rgb + baseAmbientLight.rgb);
+  vertexColor.a = aColor.a;
 
   vec3 vertexWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
   cameraDistance = distance(cameraPosition, vertexWorldPosition);

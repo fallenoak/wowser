@@ -3,6 +3,7 @@ import THREE from 'three';
 import Submesh from './submesh';
 import M2Material from './material';
 import AnimationManager from './animation-manager';
+import BatchManager from './batch-manager';
 
 class M2 extends THREE.Group {
 
@@ -65,12 +66,14 @@ class M2 extends THREE.Group {
 
     // Instanced M2s can share geometries and texture units.
     if (instance) {
-      this.textureUnits = instance.textureUnits;
+      this.batchManager = instance.batchManager;
+      this.batches = instance.batches;
       this.geometry = instance.geometry;
       this.submeshGeometries = instance.submeshGeometries;
     } else {
+      this.batchManager = new BatchManager(data, skinData);
       this.createTextureAnimations(data);
-      this.createTextureUnits(data, skinData);
+      this.createBatches(data, skinData);
       this.createGeometry(data.vertices);
     }
 
@@ -107,6 +110,9 @@ class M2 extends THREE.Group {
         bone.userData.isRoot = true;
         rootBones.push(bone);
       }
+
+      bone.userData.index = boneIndex;
+      bone.userData.pivot = new THREE.Vector3().copy(correctedPosition);
 
       // Enable skinning support on this M2 if we have bone animations.
       if (boneDef.animated) {
@@ -179,86 +185,35 @@ class M2 extends THREE.Group {
     this.skeleton.matrixAutoUpdate = this.matrixAutoUpdate;
   }
 
-  // Returns a map of M2Materials indexed by submesh. Each material represents a texture unit,
+  // Returns a map of M2Materials indexed by submesh. Each material represents a batch,
   // to be rendered in the order of appearance in the map's entry for the submesh index.
-  createTextureUnits(data, skinData) {
-    const textureUnits = new Map();
+  createBatches() {
+    const batches = new Map();
 
-    const textureUnitDefs = skinData.textureUnits;
+    const batchDefs = this.batchManager.createDefs();
 
-    const { textureLookups, textures, renderFlags } = data;
-    const { transparencyLookups, transparencies, colors } = data;
-    const { uvAnimationLookups, uvAnimations } = data;
+    const batchLen = batchDefs.length;
+    for (let batchIndex = 0; batchIndex < batchLen; ++batchIndex) {
+      const batchDef = batchDefs[batchIndex];
 
-    const tuLen = textureUnitDefs.length;
-    for (let tuIndex = 0; tuIndex < tuLen; ++tuIndex) {
-      const textureUnit = textureUnitDefs[tuIndex];
-      const { submeshIndex, textureUnitNumber, opCount } = textureUnit;
+      const { submeshIndex } = batchDef;
 
-      if (!textureUnits.has(submeshIndex)) {
-        textureUnits.set(submeshIndex, []);
+      if (!batches.has(submeshIndex)) {
+        batches.set(submeshIndex, []);
       }
 
-      // Array that will contain materials matching each texture unit.
-      const submeshTextureUnits = textureUnits.get(submeshIndex);
-
-      const materialDef = {
-        shaderID: null,
-        opCount: textureUnit.opCount,
-        renderFlags: null,
-        blendingMode: null,
-        textures: [],
-        uvAnimations: [],
-        transparencyAnimations: [],
-        vertexColorAnimation: null
-      };
-
-      // Shader ID (needs to be unmasked to get actual shader ID)
-      materialDef.shaderID = textureUnit.shaderID;
-
-      // Render flags and blending mode
-      const renderFlagsIndex = textureUnit.renderFlagsIndex;
-      materialDef.renderFlags = renderFlags[renderFlagsIndex].flags;
-      materialDef.blendingMode = renderFlags[renderFlagsIndex].blendingMode;
-
-      // Vertex color animation block
-      if (textureUnit.colorIndex > -1 && colors[textureUnit.colorIndex]) {
-        materialDef.vertexColorAnimation = textureUnit.colorIndex;
-      }
-
-      for (let opIndex = 0; opIndex < opCount; ++opIndex) {
-        // Texture
-        const textureLookup = textureUnit.textureIndex + opIndex;
-        const textureIndex = textureLookups[textureLookup];
-        const texture = textures[textureIndex];
-        materialDef.textures[opIndex] = texture;
-
-        // Texture transparency animation block
-        const transparencyLookup = textureUnit.transparencyIndex + opIndex;
-        const transparencyIndex = transparencyLookups[transparencyLookup];
-        const transparencyAnimation = transparencies[transparencyIndex];
-        if (transparencyAnimation) {
-          materialDef.transparencyAnimations[opIndex] = transparencyIndex;
-        }
-
-        // UV animation block
-        const uvAnimationLookup = textureUnit.textureAnimIndex + opIndex;
-        const uvAnimationIndex = uvAnimationLookups[uvAnimationLookup];
-        const uvAnimation = uvAnimations[uvAnimationIndex];
-        if (uvAnimation) {
-          materialDef.uvAnimations[opIndex] = uvAnimationIndex;
-        }
-      }
+      // Array that will contain materials matching each batch.
+      const submeshBatches = batches.get(submeshIndex);
 
       // Observe the M2's skinning flag in the M2Material.
-      materialDef.useSkinning = this.useSkinning;
+      batchDef.useSkinning = this.useSkinning;
 
-      const tuMaterial = new M2Material(this, materialDef);
+      const batchMaterial = new M2Material(this, batchDef);
 
-      submeshTextureUnits[textureUnitNumber] = tuMaterial;
+      submeshBatches.unshift(batchMaterial);
     }
 
-    this.textureUnits = textureUnits;
+    this.batches = batches;
   }
 
   createGeometry(vertices) {
@@ -329,12 +284,12 @@ class M2 extends THREE.Group {
     for (let submeshIndex = 0; submeshIndex < subLen; ++submeshIndex) {
       const submeshDef = submeshes[submeshIndex];
 
-      // Bring up relevant texture units and geometry.
-      const submeshTextureUnits = this.textureUnits.get(submeshIndex);
+      // Bring up relevant batches and geometry.
+      const submeshBatches = this.batches.get(submeshIndex);
       const submeshGeometry = this.submeshGeometries.get(submeshIndex) ||
         this.createSubmeshGeometry(submeshDef, indices, triangles, vertices);
 
-      const submesh = this.createSubmesh(submeshDef, submeshGeometry, submeshTextureUnits);
+      const submesh = this.createSubmesh(submeshDef, submeshGeometry, submeshBatches);
 
       this.parts.set(submesh.userData.partID, submesh);
       this.submeshes.push(submesh);
@@ -353,6 +308,7 @@ class M2 extends THREE.Group {
     geometry.skinWeights = Array.from(this.geometry.skinWeights);
 
     const uvs = [];
+    const uv2s = [];
 
     const { startTriangle: start, triangleCount: count } = submeshDef;
     for (let i = start, faceIndex = 0; i < start + count; i += 3, ++faceIndex) {
@@ -367,25 +323,27 @@ class M2 extends THREE.Group {
       geometry.faces.push(face);
 
       uvs[faceIndex] = [];
+      uv2s[faceIndex] = [];
       for (let vinIndex = 0, vinLen = vindices.length; vinIndex < vinLen; ++vinIndex) {
         const index = vindices[vinIndex];
 
         const { textureCoords, normal } = vertices[index];
 
-        uvs[faceIndex].push(new THREE.Vector2(textureCoords[0], textureCoords[1]));
+        uvs[faceIndex].push(new THREE.Vector2(textureCoords[0][0], textureCoords[0][1]));
+        uv2s[faceIndex].push(new THREE.Vector2(textureCoords[1][0], textureCoords[1][1]));
 
         face.vertexNormals.push(new THREE.Vector3(normal[0], normal[1], normal[2]));
       }
     }
 
-    geometry.faceVertexUvs = [uvs];
+    geometry.faceVertexUvs = [uvs, uv2s];
 
     const bufferGeometry = new THREE.BufferGeometry().fromGeometry(geometry);
 
     return bufferGeometry;
   }
 
-  createSubmesh(submeshDef, geometry, textureUnits) {
+  createSubmesh(submeshDef, geometry, batches) {
     const rootBone = this.bones[submeshDef.rootBone];
 
     const opts = {
@@ -398,22 +356,21 @@ class M2 extends THREE.Group {
 
     const submesh = new Submesh(opts);
 
-    submesh.applyTextureUnits(textureUnits);
+    submesh.applyBatches(batches);
 
-    submesh.userData.partID = submeshDef.id;
+    submesh.userData.partID = submeshDef.partID;
 
     return submesh;
   }
 
   createTextureAnimations(data) {
-    this.textureAnimations = new THREE.Object3D();
     this.uvAnimationValues = [];
     this.transparencyAnimationValues = [];
     this.vertexColorAnimationValues = [];
 
     const uvAnimations = data.uvAnimations;
-    const transparencyAnimations = data.transparencies;
-    const vertexColorAnimations = data.colors;
+    const transparencyAnimations = data.transparencyAnimations;
+    const vertexColorAnimations = data.vertexColorAnimations;
 
     this.createUVAnimations(uvAnimations);
     this.createTransparencyAnimations(transparencyAnimations);
@@ -545,24 +502,20 @@ class M2 extends THREE.Group {
   }
 
   applySphericalBillboard(camera, bone) {
-    const boneRoot = bone.skin;
+    const cameraLocal = new THREE.Vector4().copy(this.worldToLocal(camera.position.clone()));
 
-    if (!boneRoot) {
-      return;
+    if (bone.parent instanceof THREE.Bone) {
+      cameraLocal.copy(bone.parent.worldToLocal(camera.position.clone()));
     }
 
-    const camPos = this.worldToLocal(camera.position.clone());
+    const pivot4 = new THREE.Vector4().copy(bone.userData.pivot);
+    pivot4.w = 0;
 
-    const modelForward = new THREE.Vector3(camPos.x, camPos.y, camPos.z);
-    modelForward.normalize();
+    cameraLocal.subVectors(cameraLocal, pivot4);
 
-    const modelVmEl = boneRoot.modelViewMatrix.elements;
-    const modelRight = new THREE.Vector3(modelVmEl[0], modelVmEl[4], modelVmEl[8]);
-    modelRight.multiplyScalar(-1);
-
-    const modelUp = new THREE.Vector3();
-    modelUp.crossVectors(modelForward, modelRight);
-    modelUp.normalize();
+    const modelForward = cameraLocal.normalize();
+    const modelRight = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 0, 1), modelForward).normalize();
+    const modelUp = new THREE.Vector3().crossVectors(modelForward, modelRight).normalize();
 
     const rotateMatrix = new THREE.Matrix4();
 
@@ -577,21 +530,20 @@ class M2 extends THREE.Group {
   }
 
   applyCylindricalZBillboard(camera, bone) {
-    const boneRoot = bone.skin;
+    const cameraLocal = new THREE.Vector4().copy(this.worldToLocal(camera.position.clone()));
 
-    if (!boneRoot) {
-      return;
+    if (bone.parent instanceof THREE.Bone) {
+      cameraLocal.copy(bone.parent.worldToLocal(camera.position.clone()));
     }
 
-    const camPos = this.worldToLocal(camera.position.clone());
+    const pivot4 = new THREE.Vector4().copy(bone.userData.pivot);
+    pivot4.w = 0;
 
-    const modelForward = new THREE.Vector3(camPos.x, camPos.y, camPos.z);
-    modelForward.normalize();
+    cameraLocal.subVectors(cameraLocal, pivot4);
 
-    const modelVmEl = boneRoot.modelViewMatrix.elements;
-    const modelRight = new THREE.Vector3(modelVmEl[0], modelVmEl[4], modelVmEl[8]);
-
+    const modelForward = cameraLocal.normalize();
     const modelUp = new THREE.Vector3(0, 0, 1);
+    const modelRight = new THREE.Vector3().crossVectors(modelUp, modelForward).normalize();
 
     const rotateMatrix = new THREE.Matrix4();
 
@@ -635,9 +587,10 @@ class M2 extends THREE.Group {
 
     if (this.canInstance) {
       instance.animations = this.animations;
+      instance.batchManager = this.batchManager;
       instance.geometry = this.geometry;
       instance.submeshGeometries = this.submeshGeometries;
-      instance.textureUnits = this.textureUnits;
+      instance.batches = this.batches;
     } else {
       instance = null;
     }

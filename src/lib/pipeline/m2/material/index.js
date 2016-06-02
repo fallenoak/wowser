@@ -1,10 +1,56 @@
 import THREE from 'three';
 
 import TextureLoader from '../../texture-loader';
-import vertexShader from './shader.vert';
-import fragmentShader from './shader.frag';
 
 class M2Material extends THREE.ShaderMaterial {
+
+  static VERTEX_SHADERS = {
+    'Diffuse_T1': require('./vertex/diffuse-t1.glsl'),
+    'Diffuse_Env': require('./vertex/diffuse-env.glsl'),
+    'Diffuse_T1_T2': require('./vertex/diffuse-t1-t2.glsl'),
+    'Diffuse_T1_Env': require('./vertex/diffuse-t1-env.glsl'),
+    'Diffuse_Env_Env': require('./vertex/diffuse-env-env.glsl'),
+    'Discard': require('./vertex/discard.glsl')
+  };
+
+  static FRAGMENT_SHADERS = {
+    'Combiners_Opaque': require('./fragment/combiners-opaque.glsl'),
+    'Combiners_Mod': require('./fragment/combiners-mod.glsl'),
+    'Combiners_Opaque_Opaque': require('./fragment/combiners-opaque-opaque.glsl'),
+    'Combiners_Opaque_Add': require('./fragment/combiners-opaque-add.glsl'),
+    'Combiners_Opaque_AddNA': require('./fragment/combiners-opaque-addna.glsl'),
+    'Combiners_Opaque_AddAlpha': require('./fragment/combiners-opaque-addalpha.glsl'),
+    'Combiners_Opaque_AddAlpha_Alpha': require('./fragment/combiners-opaque-addalpha-alpha.glsl'),
+    'Combiners_Opaque_Mod': require('./fragment/combiners-opaque-mod.glsl'),
+    'Combiners_Opaque_Mod2x': require('./fragment/combiners-opaque-mod2x.glsl'),
+    'Combiners_Opaque_Mod2xNA': require('./fragment/combiners-opaque-mod2xna.glsl'),
+    'Combiners_Opaque_Mod2xNA_Alpha': require('./fragment/combiners-opaque-mod2xna-alpha.glsl'),
+    'Combiners_Mod_Opaque': require('./fragment/combiners-mod-opaque.glsl'),
+    'Combiners_Mod_Mod': require('./fragment/combiners-mod-mod.glsl'),
+    'Combiners_Mod_Mod2x': require('./fragment/combiners-mod-mod2x.glsl'),
+    'Discard': require('./fragment/discard.glsl')
+    /*
+    'Combiners_Mod':              'frag/mod.frag',
+    'Combiners_Decal':            'frag/decal.frag',
+    'Combiners_Add':              'frag/add.frag',
+    'Combiners_Mod2x':            'frag/mod2x.frag',
+    'Combiners_Fade':             'frag/fade.frag',
+    'Combiners_Opaque_Opaque':    'frag/opaque-opaque.frag',
+    'Combiners_Opaque_Mod':       'frag/opaque-mod.frag',
+    'Combiners_Opaque_Add':       '',
+    'Combiners_Opaque_Mod2x':     9,
+    'Combiners_Opaque_Mod2xNA':   10,
+    'Combiners_Opaque_AddNA':     11,
+    'Combiners_Mod_Opaque':       12,
+    'Combiners_Mod_Mod':          13
+    'Combiners_Mod_Add':          14,
+    'Combiners_Mod_Mod2x':        15,
+    'Combiners_Mod_Mod2xNA':      16,
+    'Combiners_Mod_AddNA':        17,
+    'Combiners_Add_Mod':          18,
+    'Combiners_Mod2x_Mod2x':      19
+    */
+  };
 
   constructor(m2, def) {
     if (def.useSkinning) {
@@ -17,16 +63,11 @@ class M2Material extends THREE.ShaderMaterial {
 
     this.eventListeners = [];
 
-    const vertexShaderMode = this.vertexShaderModeFromID(def.shaderID, def.opCount);
-    const fragmentShaderMode = this.fragmentShaderModeFromID(def.shaderID, def.opCount);
+    this.layer = def.layer;
 
     this.uniforms = {
       textureCount: { type: 'i', value: 0 },
       textures: { type: 'tv', value: [] },
-
-      blendingMode: { type: 'i', value: 0 },
-      vertexShaderMode: { type: 'i', value: vertexShaderMode },
-      fragmentShaderMode: { type: 'i', value: fragmentShaderMode },
 
       billboarded: { type: 'f', value: 0.0 },
 
@@ -34,8 +75,8 @@ class M2Material extends THREE.ShaderMaterial {
       animatedVertexColorRGB: { type: 'v3', value: new THREE.Vector3(1.0, 1.0, 1.0) },
       animatedVertexColorAlpha: { type: 'f', value: 1.0 },
 
-      // Animated transparencies
-      animatedTransparencies: { type: '1fv', value: [1.0, 1.0, 1.0, 1.0] },
+      // Animated transparency
+      animatedTransparency: { type: 'f', value: 1.0 },
 
       // Animated texture coordinate transform matrices
       animatedUVs: {
@@ -60,14 +101,10 @@ class M2Material extends THREE.ShaderMaterial {
       fogEnd: { type: 'f', value: 400.0 }
     };
 
-    this.vertexShader = vertexShader;
-    this.fragmentShader = fragmentShader;
-
     this.applyRenderFlags(def.renderFlags);
     this.applyBlendingMode(def.blendingMode);
 
-    // Shader ID is a masked int that determines mode for vertex and fragment shader.
-    this.shaderID = def.shaderID;
+    this.assignShaders(def.shaderNames);
 
     // Loaded by calling updateSkinTextures()
     this.skins = {};
@@ -82,42 +119,13 @@ class M2Material extends THREE.ShaderMaterial {
     this.registerAnimations(def);
   }
 
-  // TODO: Fully expand these lookups.
-  vertexShaderModeFromID(shaderID, opCount) {
-    if (opCount === 1) {
-      return 0;
-    }
-
-    if (shaderID === 0) {
-      return 1;
-    }
-
-    return -1;
-  }
-
-  // TODO: Fully expand these lookups.
-  fragmentShaderModeFromID(shaderID, opCount) {
-    if (opCount === 1) {
-      // fragCombinersWrath1Pass
-      return 0;
-    }
-
-    if (shaderID === 0) {
-      // fragCombinersWrath2Pass
-      return 1;
-    }
-
-    // Unknown / unhandled
-    return -1;
-  }
-
   enableBillboarding() {
     // TODO: Make billboarding happen in the vertex shader.
     this.uniforms.billboarded = { type: 'f', value: '1.0' };
 
     // TODO: Shouldn't this be FrontSide? Billboarding logic currently seems to flips the mesh
     // backward.
-    this.side = THREE.BackSide;
+    this.side = THREE.DoubleSide;
   }
 
   applyRenderFlags(renderFlags) {
@@ -144,7 +152,7 @@ class M2Material extends THREE.ShaderMaterial {
   }
 
   applyBlendingMode(blendingMode) {
-    this.uniforms.blendingMode.value = blendingMode;
+    this.defines['BLENDING_MODE'] = blendingMode;
 
     if (blendingMode === 1) {
       this.uniforms.alphaKey = { type: 'f', value: 1.0 };
@@ -214,6 +222,42 @@ class M2Material extends THREE.ShaderMaterial {
     }
   }
 
+  assignShaders(shaderNames) {
+    /*
+    let vertex, fragment;
+
+    if (!shaderNames) {
+      // TODO: warn somehow?
+      console.log('missing shader names, assigning defaults');
+
+      vertex = 'Diffuse_T1';
+      fragment = 'Combiners_Opaque';
+    } else {
+      vertex = shaderNames.vertex;
+      fragment = shaderNames.fragment;
+    }
+
+    this.shaderNames = {
+      vertex: vertex,
+      fragment: fragment
+    };
+    */
+
+    this.shaderNames = shaderNames;
+
+    if (this.shaderNames) {
+      this.vertexShader = this.constructor.VERTEX_SHADERS[shaderNames.vertex];
+      this.fragmentShader = this.constructor.FRAGMENT_SHADERS[shaderNames.fragment];
+
+      if (!this.constructor.FRAGMENT_SHADERS[shaderNames.fragment]) {
+        console.warn('MISSING SHADERS FOR M2: ', this.m2.name, this.shaderNames.fragment);
+      }
+    } else {
+      this.vertexShader = this.constructor.VERTEX_SHADERS['Discard'];
+      this.fragmentShader = this.constructor.FRAGMENT_SHADERS['Discard'];
+    }
+  }
+
   loadTextures() {
     const textureDefs = this.textureDefs;
 
@@ -273,11 +317,11 @@ class M2Material extends THREE.ShaderMaterial {
   }
 
   registerAnimations(def) {
-    const { uvAnimations, transparencyAnimations, vertexColorAnimation } = def;
+    const { uvAnimationIndices, transparencyAnimationIndex, vertexColorAnimationIndex } = def;
 
-    this.registerUVAnimations(uvAnimations);
-    this.registerTransparencyAnimations(transparencyAnimations);
-    this.registerVertexColorAnimation(vertexColorAnimation);
+    this.registerUVAnimations(uvAnimationIndices);
+    this.registerTransparencyAnimation(transparencyAnimationIndex);
+    this.registerVertexColorAnimation(vertexColorAnimationIndex);
   }
 
   registerUVAnimations(uvAnimationIndices) {
@@ -301,20 +345,19 @@ class M2Material extends THREE.ShaderMaterial {
     this.eventListeners.push([animations, 'update', updater]);
   }
 
-  registerTransparencyAnimations(transparencyAnimationIndices) {
-    if (transparencyAnimationIndices.length === 0) {
+  registerTransparencyAnimation(transparencyAnimationIndex) {
+    if (transparencyAnimationIndex === null || transparencyAnimationIndex === -1) {
       return;
     }
 
     const { animations, transparencyAnimationValues } = this.m2;
 
-    const updater = () => {
-      transparencyAnimationIndices.forEach((valueIndex, opIndex) => {
-        const target = this.uniforms.animatedTransparencies;
-        const source = transparencyAnimationValues;
+    const target = this.uniforms.animatedTransparency;
+    const source = transparencyAnimationValues;
+    const valueIndex = transparencyAnimationIndex;
 
-        target.value[opIndex] = source[valueIndex];
-      });
+    const updater = () => {
+      target.value = source[valueIndex];
     };
 
     animations.on('update', updater);

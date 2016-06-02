@@ -12,6 +12,8 @@ class WMO extends THREE.Group {
     this.path = path;
     this.data = data;
 
+    //console.log(this);
+
     this.groupCount = data.MOHD.groupCount;
 
     this.groups = new Map();

@@ -13,52 +13,67 @@ class Submesh extends THREE.Group {
     this.billboarded = false;
 
     if (this.useSkinning) {
-      // Preserve the rootBone for the submesh such that its skin property can be assigned to the
-      // first child texture unit mesh.
+      // Preserve the root bone for the submesh such that its skin property can be assigned to the
+      // first child batch mesh.
       this.rootBone = opts.rootBone;
-      this.billboarded = opts.rootBone.userData.billboarded;
+      this.billboarded = opts.rootBone.userData.billboarded || false;
 
-      // Preserve the skeleton for use in applying texture units.
+      // Submesh is billboarded if the root bone's parent has any children that are billboarded.
+      if (!this.billboarded && this.rootBone.parent instanceof THREE.Bone) {
+        let siblingBillboarded = false;
+
+        this.rootBone.parent.traverse((bone) => {
+          if (bone.userData.billboarded) {
+            siblingBillboarded = true;
+          }
+        });
+
+        if (siblingBillboarded) {
+          this.billboarded = true;
+        }
+      }
+
+      // Preserve the skeleton for use in applying batches.
       this.skeleton = opts.skeleton;
     }
 
-    // Preserve the geometry for use in applying texture units.
+    // Preserve the geometry for use in applying batches.
     this.geometry = opts.geometry;
   }
 
-  // Submeshes get one mesh per texture unit, which allows them to effectively simulate multiple
-  // render passes. Texture unit mesh rendering order should be handled properly by the three.js
+  // Submeshes get one mesh per batch, which allows them to effectively simulate multiple
+  // render passes. Batch mesh rendering order should be handled properly by the three.js
   // renderer.
-  //
-  // For clarity's sake, a texture unit is represented in three.js by a 1:1 coupling of a
-  // SkinnedMesh and a ShaderMaterial. We call them texture units to maintain consistency with
-  // other World of Warcraft projects.
-  //
-  applyTextureUnits(textureUnits) {
-    this.clearTextureUnits();
+  applyBatches(batches) {
+    this.clearBatches();
 
-    const tuLen = textureUnits.length;
-    for (let tuIndex = 0; tuIndex < tuLen; ++tuIndex) {
-      const tuMaterial = textureUnits[tuIndex];
+    const batchLen = batches.length;
+    for (let batchIndex = 0; batchIndex < batchLen; ++batchIndex) {
+      const batchMaterial = batches[batchIndex];
+
+      // Don't render batch if material has no shaders.
+      if (!batchMaterial.shaderNames) {
+        batchMaterial.visible = false;
+      }
 
       // If the submesh is billboarded, flag the material as billboarded.
       if (this.billboarded) {
-        tuMaterial.enableBillboarding();
+        batchMaterial.enableBillboarding();
       }
 
-      let tuMesh;
+      let batchMesh;
 
       // Only use a skinned mesh if the submesh uses skinning.
       if (this.useSkinning) {
-        tuMesh = new THREE.SkinnedMesh(this.geometry, tuMaterial);
-        tuMesh.bind(this.skeleton);
+        batchMesh = new THREE.SkinnedMesh(this.geometry, batchMaterial);
+        batchMesh.bind(this.skeleton);
       } else {
-        tuMesh = new THREE.Mesh(this.geometry, tuMaterial);
+        batchMesh = new THREE.Mesh(this.geometry, batchMaterial);
       }
 
-      tuMesh.matrixAutoUpdate = this.matrixAutoUpdate;
+      batchMesh.matrixAutoUpdate = this.matrixAutoUpdate;
 
-      this.add(tuMesh);
+      this.add(batchMesh);
     }
 
     if (this.useSkinning) {
@@ -66,8 +81,8 @@ class Submesh extends THREE.Group {
     }
   }
 
-  // Remove any existing texture unit child meshes.
-  clearTextureUnits() {
+  // Remove any existing child batch meshes.
+  clearBatches() {
     const childrenLength = this.children.length;
     for (let childIndex = 0; childIndex < childrenLength; ++childIndex) {
       const child = this.children[childIndex];
@@ -75,13 +90,13 @@ class Submesh extends THREE.Group {
     }
 
     if (this.useSkinning) {
-      // If all texture unit meshes are cleared, there is no longer a skin to associate with the
+      // If all batch meshes are cleared, there is no longer a skin to associate with the
       // root bone.
       this.rootBone.skin = null;
     }
   }
 
-  // Update all existing texture unit mesh materials to point to the new skins (textures).
+  // Update all existing batch mesh materials to point to the new skins (textures).
   set displayInfo(displayInfo) {
     const { path } = displayInfo.modelData;
 
