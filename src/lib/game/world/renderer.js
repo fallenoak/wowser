@@ -18,8 +18,6 @@ class WorldRenderer extends EventEmitter {
 
     this.renderer = null;
 
-    this.render = ::this.render;
-
     this.scenes = {
       daynight: new THREE.Scene(),
       skybox: new THREE.Scene(),
@@ -31,14 +29,18 @@ class WorldRenderer extends EventEmitter {
     }
 
     this.frameID = null;
+
+    this.render = ::this.render;
   }
 
   start(canvas, width, height) {
-    this.renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      canvas: canvas,
-      antialias: true
-    });
+    if (!this.renderer) {
+      this.renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        canvas: canvas,
+        antialias: true
+      });
+    }
 
     this.setClearColor(new THREE.Color(0.1, 0.2, 0.3));
 
@@ -56,13 +58,15 @@ class WorldRenderer extends EventEmitter {
     }
 
     if (this.frameID) {
-      this.renderer.frameID = null;
+      this.frameID = null;
       cancelAnimationFrame(this.frameID);
     }
   }
 
   setClearColor(color) {
-    this.renderer.setClearColor(color);
+    if (this.renderer) {
+      this.renderer.setClearColor(color);
+    }
   }
 
   get aspectRatio() {
@@ -82,10 +86,6 @@ class WorldRenderer extends EventEmitter {
   }
 
   render() {
-    if (!this.renderer) {
-      return;
-    }
-
     this.camera.moved = this.camera.previousPosition === null ||
       this.camera.previousRotation === null ||
       !this.camera.previousPosition.equals(this.camera.position) ||
@@ -96,8 +96,10 @@ class WorldRenderer extends EventEmitter {
     this.camera.previousPosition = this.camera.position.clone();
     this.camera.previousRotation = this.camera.quaternion.clone();
 
-    this.renderer.clear();
-    this.renderer.render(this.scenes.map, this.camera);
+    if (this.renderer) {
+      this.renderer.clear();
+      this.renderer.render(this.scenes.map, this.camera);
+    }
 
     this.frameID = requestAnimationFrame(this.render);
 

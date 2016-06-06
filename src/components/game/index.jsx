@@ -22,14 +22,16 @@ class GameScreen extends React.Component {
   componentDidMount() {
     window.addEventListener('resize', this.resize);
 
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    if (session.world.renderer) {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
 
-    this.forceUpdate();
+      // Start rendering the world
+      session.world.renderer.start(this.refs.canvas, width, height);
 
-    session.world.render(this.refs.canvas, width, height);
-
-    session.world.renderer.on('render', this.updateRefs);
+      // Update stats and controls after each frame
+      session.world.renderer.on('render', this.updateRefs);
+    }
 
     // Load player model
     session.player.displayID = 24978;
@@ -98,7 +100,9 @@ class GameScreen extends React.Component {
   }
 
   resize() {
-    session.world.renderer.resize(window.innerWidth, window.innerHeight);
+    if (session.world.renderer) {
+      session.world.renderer.resize(window.innerWidth, window.innerHeight);
+    }
   }
 
   updateRefs() {

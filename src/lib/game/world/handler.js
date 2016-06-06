@@ -29,10 +29,6 @@ class WorldHandler extends EventEmitter {
     this.player.on('position:change', this.changePosition);
   }
 
-  render(canvas, width, height) {
-    this.renderer.start(canvas, width, height);
-  }
-
   add(entity) {
     this.entities.add(entity);
     if (entity.view) {
