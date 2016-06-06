@@ -31,6 +31,9 @@ class GameScreen extends React.Component {
 
     session.world.renderer.on('render', this.updateRefs);
 
+    // Load player model
+    session.player.displayID = 24978;
+
     // Darkshire (Eastern Kingdoms)
     session.player.worldport(0, -10559, -1189, 28);
 

@@ -11,7 +11,7 @@ class Player extends Unit {
 
     this.target = null;
 
-    this.displayID = 24978;
+    this.displayID = null;
     this.mapID = null;
   }
 
