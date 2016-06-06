@@ -1,5 +1,4 @@
 import React from 'react';
-import THREE from 'three';
 
 import './index.styl';
 
@@ -16,81 +15,92 @@ class GameScreen extends React.Component {
   constructor() {
     super();
 
-    this.animate = ::this.animate;
     this.resize = ::this.resize;
-
-    this.camera = new THREE.PerspectiveCamera(60, this.aspectRatio, 1, 1000);
-    this.camera.up.set(0, 0, 1);
-    this.camera.position.set(15, 0, 7);
-
-    this.prevCameraRotation = null;
-    this.prevCameraPosition = null;
-
-    this.renderer = null;
-    this.requestID = null;
-
-    // For some reason, we can't use the clock from controls here.
-    this.clock = new THREE.Clock();
+    this.updateRefs = ::this.updateRefs;
   }
 
   componentDidMount() {
-    this.renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      canvas: this.refs.canvas
-    });
+    window.addEventListener('resize', this.resize);
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
     this.forceUpdate();
-    this.resize();
-    this.animate();
 
-    window.addEventListener('resize', this.resize);
+    session.world.render(this.refs.canvas, width, height);
+
+    session.world.renderer.on('render', this.updateRefs);
+
+    // Darkshire (Eastern Kingdoms)
+    session.player.worldport(0, -10559, -1189, 28);
+
+    // Booty Bay (Eastern Kingdoms)
+    // session.player.worldport(0, -14354, 518, 22);
+
+    // Stonewrought Dam (Eastern Kingdoms)
+    // session.player.worldport(0, -4651, -3316, 296);
+
+    // Ironforge (Eastern Kingdoms)
+    // session.player.worldport(0, -4981.25, -881.542, 502.66);
+
+    // Darnassus (Kalimdor)
+    // session.player.worldport(1, 9947, 2557, 1316);
+
+    // Astranaar (Kalimdor)
+    // session.player.worldport(1, 2752, -348, 107);
+
+    // Moonglade (Kalimdor)
+    // session.player.worldport(1, 7827, -2425, 489);
+
+    // Un'Goro Crater (Kalimdor)
+    // session.player.worldport(1, -7183, -1394, -183);
+
+    // Everlook (Kalimdor)
+    // session.player.worldport(1, 6721.44, -4659.09, 721.893);
+
+    // Stonetalon Mountains (Kalimdor)
+    // session.player.worldport(1, 2506.3, 1470.14, 263.722);
+
+    // Mulgore (Kalimdor)
+    // session.player.worldport(1, -1828.913, -426.307, 6.299);
+
+    // Thunderbluff (Kalimdor)
+    // session.player.worldport(1, -1315.901, 138.6357, 302.008);
+
+    // Auberdine (Kalimdor)
+    // session.player.worldport(1, 6355.151, 508.831, 15.859);
+
+    // The Exodar (Expansion 01)
+    // session.player.worldport(530, -4013, -11894, -2);
+
+    // Nagrand (Expansion 01)
+    // session.player.worldport(530, -743.149, 8385.114, 33.435);
+
+    // Eversong Woods (Expansion 01)
+    // session.player.worldport(530, 9152.441, -7442.229, 68.144);
+
+    // Daggercap Bay (Northrend)
+    // session.player.worldport(571, 1031, -5192, 180);
+
+    // Dalaran (Northrend)
+    // session.player.worldport(571, 5797, 629, 647);
   }
 
   componentWillUnmount() {
-    if (this.renderer) {
-      this.renderer.dispose();
-      this.renderer = null;
-    }
-
-    if (this.requestID) {
-      this.requestID = null;
-      cancelAnimationFrame(this.requestID);
+    if (session.world.renderer) {
+      session.world.renderer.stop();
     }
 
     window.removeEventListener('resize', this.resize);
   }
 
-  get aspectRatio() {
-    return window.innerWidth / window.innerHeight;
-  }
-
   resize() {
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.camera.aspect = this.aspectRatio;
-    this.camera.updateProjectionMatrix();
+    session.world.renderer.resize(window.innerWidth, window.innerHeight);
   }
 
-  animate() {
-    if (!this.renderer) {
-      return;
-    }
-
+  updateRefs() {
     this.refs.controls.update();
     this.refs.stats.forceUpdate();
-
-    const cameraMoved =
-      this.prevCameraRotation === null ||
-      this.prevCameraPosition === null ||
-      !this.prevCameraRotation.equals(this.camera.quaternion) ||
-      !this.prevCameraPosition.equals(this.camera.position);
-
-    session.world.animate(this.clock.getDelta(), this.camera, cameraMoved);
-
-    this.renderer.render(session.world.scene, this.camera);
-    this.requestID = requestAnimationFrame(this.animate);
-
-    this.prevCameraRotation = this.camera.quaternion.clone();
-    this.prevCameraPosition = this.camera.position.clone();
   }
 
   render() {
@@ -98,8 +108,8 @@ class GameScreen extends React.Component {
       <game className="game screen">
         <canvas ref="canvas"></canvas>
         <HUD />
-        <Controls ref="controls" for={ session.player } camera={ this.camera } />
-        <Stats ref="stats" renderer={ this.renderer } map={ session.world.map } />
+        <Controls ref="controls" for={ session.player } camera={ session.world.renderer.camera } />
+        <Stats ref="stats" world={ session.world } />
       </game>
     );
   }

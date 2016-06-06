@@ -5,15 +5,52 @@ import './index.styl';
 class Stats extends React.Component {
 
   static propTypes = {
-    renderer: React.PropTypes.object,
-    map: React.PropTypes.object
+    world: React.PropTypes.object
   };
 
-  mapStats() {
-    const map = this.props.map;
+  rendererStats() {
+    const renderer = this.props.world.renderer;
+    const { memory, programs, render } = renderer.info;
 
     return (
-      <div>
+      <div className="renderer-stats">
+        <h2>Memory</h2>
+        <div className="divider"></div>
+        <p>
+          Geometries: { memory.geometries }
+        </p>
+        <p>
+          Textures: { memory.textures }
+        </p>
+        <p>
+          Programs: { programs.length }
+        </p>
+
+        <div className="divider"></div>
+
+        <h2>Render</h2>
+        <div className="divider"></div>
+        <p>
+          Calls: { render.calls }
+        </p>
+        <p>
+          Faces: { render.faces }
+        </p>
+        <p>
+          Points: { render.points }
+        </p>
+        <p>
+          Vertices: { render.vertices }
+        </p>
+      </div>
+    );
+  }
+
+  mapStats() {
+    const map = this.props.world.map;
+
+    return (
+      <div className="map-stats">
         <div className="divider"></div>
 
         <h2>Map Chunks</h2>
@@ -66,45 +103,12 @@ class Stats extends React.Component {
   }
 
   render() {
-    const renderer = this.props.renderer;
-    if (!renderer) {
-      return null;
-    }
+    const renderer = this.props.world.renderer;
+    const map = this.props.world.map;
 
-    const map = this.props.map;
-
-    const { memory, programs, render } = renderer.info;
     return (
       <stats className="stats frame thin">
-        <h2>Memory</h2>
-        <div className="divider"></div>
-        <p>
-          Geometries: { memory.geometries }
-        </p>
-        <p>
-          Textures: { memory.textures }
-        </p>
-        <p>
-          Programs: { programs.length }
-        </p>
-
-        <div className="divider"></div>
-
-        <h2>Render</h2>
-        <div className="divider"></div>
-        <p>
-          Calls: { render.calls }
-        </p>
-        <p>
-          Faces: { render.faces }
-        </p>
-        <p>
-          Points: { render.points }
-        </p>
-        <p>
-          Vertices: { render.vertices }
-        </p>
-
+        { renderer && renderer.info && this.rendererStats() }
         { map && this.mapStats() }
       </stats>
     );
