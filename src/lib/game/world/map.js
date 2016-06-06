@@ -117,9 +117,9 @@ class WorldMap extends THREE.Group {
     return chunkX * 64 * 16 + chunkY;
   }
 
-  animate(delta, camera, cameraMoved) {
-    this.doodadManager.animate(delta, camera, cameraMoved);
-    this.wmoManager.animate(delta, camera, cameraMoved);
+  animate(delta, camera) {
+    this.doodadManager.animate(delta, camera);
+    this.wmoManager.animate(delta, camera);
   }
 
   static load(id) {

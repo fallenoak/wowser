@@ -156,9 +156,9 @@ class WMOManager {
     });
   }
 
-  animate(delta, camera, cameraMoved) {
+  animate(delta, camera) {
     this.entries.forEach((wmoHandler) => {
-      wmoHandler.animate(delta, camera, cameraMoved);
+      wmoHandler.animate(delta, camera);
     });
   }
 

@@ -74,18 +74,18 @@ class WorldHandler extends EventEmitter {
     this.renderAtCoords(player.position.x, player.position.y);
   }
 
-  animate(delta, camera, cameraMoved) {
-    this.animateEntities(delta, camera, cameraMoved);
+  animate(delta, camera) {
+    this.animateEntities(delta, camera);
 
     if (this.map !== null) {
-      this.map.animate(delta, camera, cameraMoved);
+      this.map.animate(delta, camera);
     }
 
     // Send delta updates to instanced M2 animation managers.
     M2Blueprint.animate(delta);
   }
 
-  animateEntities(delta, camera, cameraMoved) {
+  animateEntities(delta, camera) {
     this.entities.forEach((entity) => {
       const { model } = entity;
 
@@ -97,7 +97,7 @@ class WorldHandler extends EventEmitter {
         model.animations.update(delta);
       }
 
-      if (cameraMoved && model.billboards.length > 0) {
+      if (camera.moved && model.billboards.length > 0) {
         model.applyBillboards(camera);
       }
 

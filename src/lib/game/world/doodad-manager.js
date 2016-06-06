@@ -211,7 +211,7 @@ class DoodadManager {
     doodad.updateMatrix();
   }
 
-  animate(delta, camera, cameraMoved) {
+  animate(delta, camera) {
     this.animatedDoodads.forEach((doodad) => {
       if (!doodad.visible) {
         return;
@@ -221,7 +221,7 @@ class DoodadManager {
         doodad.animations.update(delta);
       }
 
-      if (cameraMoved && doodad.billboards.length > 0) {
+      if (camera.moved && doodad.billboards.length > 0) {
         doodad.applyBillboards(camera);
       }
 

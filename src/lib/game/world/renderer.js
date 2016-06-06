@@ -91,7 +91,7 @@ class WorldRenderer extends EventEmitter {
       !this.camera.previousPosition.equals(this.camera.position) ||
       !this.camera.previousRotation.equals(this.camera.quaternion);
 
-    this.world.animate(this.world.clock.getDelta(), this.camera.moved);
+    this.world.animate(this.world.clock.getDelta(), this.camera);
 
     this.camera.previousPosition = this.camera.position.clone();
     this.camera.previousRotation = this.camera.quaternion.clone();

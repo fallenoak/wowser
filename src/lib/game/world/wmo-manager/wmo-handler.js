@@ -376,7 +376,7 @@ class WMOHandler {
     return wmoDoodads;
   }
 
-  animate(delta, camera, cameraMoved) {
+  animate(delta, camera) {
     for (const wmoDoodad of this.animatedDoodads.values()) {
       if (!wmoDoodad.visible) {
         continue;
@@ -386,7 +386,7 @@ class WMOHandler {
         wmoDoodad.animations.update(delta);
       }
 
-      if (cameraMoved && wmoDoodad.billboards.length > 0) {
+      if (camera.moved && wmoDoodad.billboards.length > 0) {
         wmoDoodad.applyBillboards(camera);
       }
 
